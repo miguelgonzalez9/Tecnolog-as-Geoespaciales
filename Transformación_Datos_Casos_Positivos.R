@@ -11,20 +11,20 @@ head(x)
 dim(x)
 str(x)
 dim(x)[1]
-## Variable que registre cada caso. cada muerte. 
+## Variable que registre cada caso y cada fallecimiento 
 count <- rep(1,dim(x)[1])
 x <- cbind(x,count)
 fallecidos <- x$Recuperado == "Fallecido" | x$Recuperado == "fallecido"
 x <- cbind(x,fallecidos)
-## Tenemos que convertir todos los códigos municipales en número de 5 dígitos para esto verificamos que 
-## para todos tengamos 4 o 5 dígitos. 
+## Lo códigos municipiales está en formato numérico por lo algunos tienen cuatro dígitos y otros cinco.
+## Para poder empalmar con otras bases de datos se tranforman los datos a formato númeor y se agrega un 0 en el primer dígito para los tienen cuatro dígitos. 
 sum(nchar(x$`Código DIVIPOLA municipio`) == 4) + sum(nchar(x$`Código DIVIPOLA municipio`) == 5) == dim(x)[1]
 ## Ahora tomamos los de cuatro dígitos y añadimos un 0 al principio del dígito
 df <- transform(x, Cod = ifelse(nchar(`Código DIVIPOLA municipio`)==4, paste0(0,`Código DIVIPOLA municipio`),`Código DIVIPOLA municipio`))
 df <- transform(df, Cod = as.character(Cod))
-## Agrupar datos por código de departamento.
+## Agrupar datos por código de municipio
 data <-df %>% group_by(Cod)
-## Casos por cada código municipal.
+## Resumir casos y fallecidos a nivel municipal.
 casos_municipio <- data %>% summarise(casos = sum(count), muertes = sum(fallecidos))
 ##identificación de capitales
 file <- "~/OneDrive - Universidad del rosario/Tec Geo/Proyecto/Datos/Capitales Colombia.xlsx"
@@ -39,25 +39,5 @@ write.csv(casos_municipio_cap, file)
 file <- "Datos/IPM_2018_FuenteCensal.csv"
 IPM <- read_csv(file)
 str(IPM)
-## Joint con base de datos.
+## Empalme IPM con casos y fallecidos, identificador: código municipal.
 data_base <- inner_join(IPM, casos_municipio_cap, by = c("MPIO_CCNCT" = "Cod"))
-## Transformación IPS por Municipio 
-file <- "~/OneDrive - Universidad del rosario/Tec Geo/Proyecto/Datos/Registro_Especial_de_Prestadores_de_Servicios_de_Salud.csv"
-ips <- read_csv(file)
-ips_mun <- ips %>% count(idmpio, nompio)
-write_file <- "~/OneDrive - Universidad del rosario/Tec Geo/Proyecto/Datos/IPS_Municipios.csv"
-write.csv(ips_mun, write_file)
-
-## Tranformación Datos Temporales Contagios
-data_temp <-df %>% group_by(Fecha.de.inicio.de.síntomas, Cod) %>% 
-        summarise(casos = sum(count), muertes = sum(fallecidos)) %>% 
-        transform(Fecha.de.inicio.de.síntomas = as.Date(Fecha.de.inicio.de.síntomas, "%d/%m/%Y"))
-data_temp <-data_temp[!is.na(data_temp$Fecha.de.inicio.de.síntomas),]
-plot(data_temp$Fecha.de.inicio.de.síntomas,data_temp$casos)
-View(data_temp)
-ggplot() + geom_line(data = data_temp, aes(Fecha.de.inicio.de.síntomas, casos))
-ggplot() + geom_line(data = data_temp, aes(Fecha.de.inicio.de.síntomas, muertes), color = "blue")
-        
-boxplot(data_temp$casos)
-## 
-## , fem = 100*sum(sexo == "F")/(sum(count)), mas = 100*sum(sexo == "M")/(sum(count))
